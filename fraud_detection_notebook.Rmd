@@ -1,0 +1,124 @@
+---
+title: "Fraud Detection Using Machine Learning"
+output: html_notebook
+---
+
+# "Fraud Detection Using Machine Learning
+
+## Importing the data set into R and loading the required packages
+
+```{r}
+library(tidyverse)
+library('randomForest')
+library('caret')
+library('e1071')
+
+```
+
+### A Synthetic Financial Transaction Data set was used for this work. This data set was imported from Kaggle. Sri Harsha Eedala created it.
+
+**Note: This data has been truncated due to computational limitations**
+
+```{r}
+fraud_data <- read.csv("C:/Users/mike/Downloads/financial dataset/Synthetic_Financial_datasets_log.csv")
+head(fraud_data)
+tibble(fraud_data)
+
+```
+
+# Exploratory Data Analysis
+
+# Getting a feel of the data.
+
+### Total Transactions made by each type.
+
+```{r}
+#total transactions by type
+total_trans <- fraud_data |>  group_by(type) |> summarise(total_transactions = sum(amount))
+total_trans
+ggplot( total_trans, aes(x= type, y=total_transactions)) + geom_col( mapping = aes( fill = type, ))  
+
+ ggplot( total_trans, aes(x= type, y=total_transactions)) + geom_point( mapping = aes( size = total_transactions, color = type)) + labs(title = "Total Transactions by Each Type" ,y="total transactions", y = "type of transaction")
+```
+
+### Total transaction types that were fraudulent Only cash_out and transfer transactions were found to be usually fraudulent by operators.
+
+```{r}
+total_fraud <- fraud_data |>  group_by(type) |> summarise(total_transactions = sum(isFraud))
+total_fraud
+ggplot(total_fraud, aes( x=type, y=total_transactions)) + geom_col( mapping = aes(fill=type), width = 1) + labs(title = "Number of Fraudulent transactions by Type", x="Type of Transaction",  y="Number of transactions")
+
+```
+
+### Frequency of Transactions made according to types. It could be noted that cash out was the most performed transaction while debit was the least performed.
+
+```{r}
+ggplot(fraud_data, aes(x=type, )) + geom_bar( mapping = aes(fill = type)) + labs( x= 'Type of Transactions', y = 'Number of Transactions' , title = 'Frequency of Transaction Types')
+
+ 
+```
+
+# Modelling the data for Prediction
+
+## Support Vector Machine (SVM)
+
+### For fraud detection, the author mandated the non-utilization of columns named oldbalancedOrg, newbalanceOrg, oldbalanceDest, and newbalanceDest.
+
+```{r}
+fraud_data <- fraud_data |> select(!oldbalanceOrg)
+fraud_data <- fraud_data |> select(!newbalanceOrig)
+fraud_data <- fraud_data |> select(!oldbalanceDest)
+fraud_data <- fraud_data |> select(!newbalanceDest )
+fraud_data <- fraud_data |> select(!step)
+fraud_data <- fraud_data |> select(!isFlaggedFraud)
+fraud_data <- fraud_data |> select(!nameOrig)
+fraud_data <- fraud_data |> select(!nameDest)
+head(fraud_data)
+```
+
+### Setting the seed number and splitting the data into test and training set
+
+```{r}
+#setting the seed number
+set.seed(123)
+fraud_data$isFraud = factor(fraud_data$isFraud, levels = c(0,1))
+
+#Splitting the dataset into the Training set and Test set 
+library(caTools) 
+
+split = sample.split(fraud_data$isFraud, SplitRatio = 0.75) 
+
+training_set = subset(fraud_data, split == TRUE) 
+test_set = subset(fraud_data, split == FALSE) 
+
+```
+
+### Fitting Support Vector Machine to the training set
+
+```{r}
+classifier = svm(formula = isFraud ~ ., 
+                 data = training_set, 
+                 type = 'C-classification', 
+                 kernel = 'linear',
+                 scale = FALSE,
+                 cost = 10) 
+classifier
+```
+
+```{r}
+plot(classifier, training_set)
+```
+
+### Predicting Test Set Results
+
+```{r}
+model.prediction <- predict(classifier, newdata = test_set[-3])
+model.prediction
+```
+
+### Making the Confusion Matrix
+
+```{r}
+confusion_matrix <- caret::confusionMatrix(test_set$isFraud, model.testing)
+confusion_matrix
+```
