@@ -1,6 +1,7 @@
 ---
 title: "Fraud Detection Using Machine Learning"
 output: html_notebook
+---gv
 ---
 
 # "Fraud Detection Using Machine Learning
@@ -65,14 +66,10 @@ ggplot(fraud_data, aes(x=type, )) + geom_bar( mapping = aes(fill = type)) + labs
 ### For fraud detection, the author mandated the non-utilization of columns named oldbalancedOrg, newbalanceOrg, oldbalanceDest, and newbalanceDest.
 
 ```{r}
-fraud_data <- fraud_data |> select(!oldbalanceOrg)
-fraud_data <- fraud_data |> select(!newbalanceOrig)
-fraud_data <- fraud_data |> select(!oldbalanceDest)
-fraud_data <- fraud_data |> select(!newbalanceDest )
-fraud_data <- fraud_data |> select(!step)
-fraud_data <- fraud_data |> select(!isFlaggedFraud)
-fraud_data <- fraud_data |> select(!nameOrig)
-fraud_data <- fraud_data |> select(!nameDest)
+fraud_data <- fraud_data |> select(type, isFraud, amount)
+#fraud_data <- fraud_data |> select(!newbalanceOrig)
+#fraud_data <- fraud_data |> select(!oldbalanceDest)
+#fraud_data <- fraud_data |> select(!newbalanceDest )
 head(fraud_data)
 ```
 
@@ -80,13 +77,13 @@ head(fraud_data)
 
 ```{r}
 #setting the seed number
-set.seed(123)
-fraud_data$isFraud = factor(fraud_data$isFraud, levels = c(0,1))
+set.seed(100)
 
+fraud_data$isFraud = factor(fraud_data$isFraud, levels = c(0,1))
 #Splitting the dataset into the Training set and Test set 
 library(caTools) 
 
-split = sample.split(fraud_data$isFraud, SplitRatio = 0.75) 
+split = sample.split(fraud_data$isFraud, SplitRatio = 0.5) 
 
 training_set = subset(fraud_data, split == TRUE) 
 test_set = subset(fraud_data, split == FALSE) 
@@ -96,29 +93,143 @@ test_set = subset(fraud_data, split == FALSE)
 ### Fitting Support Vector Machine to the training set
 
 ```{r}
-classifier = svm(formula = isFraud ~ ., 
+classifier = svm(formula = isFraud ~ amount, 
                  data = training_set, 
                  type = 'C-classification', 
-                 kernel = 'linear',
-                 scale = FALSE,
-                 cost = 10) 
+                 kernel = 'linear') 
 classifier
-```
-
-```{r}
-plot(classifier, training_set)
 ```
 
 ### Predicting Test Set Results
 
 ```{r}
-model.prediction <- predict(classifier, newdata = test_set[-3])
+model.prediction <- predict(classifier, newdata = test_set)
 model.prediction
 ```
 
 ### Making the Confusion Matrix
 
 ```{r}
-confusion_matrix <- caret::confusionMatrix(test_set$isFraud, model.testing)
+confusion_matrix <- caret::confusionMatrix(test_set$isFraud, model.prediction)
 confusion_matrix
+```
+
+### Explanation for SVM
+
+### Recall
+
+```{r}
+recal <- ModelMetrics::recall(test_set$isFraud, model.prediction)
+recal
+```
+
+### Precision
+
+```{r}
+preci <- ModelMetrics::precision( test_set$isFraud,model.prediction,)
+preci
+```
+
+### F1 Score
+
+```{r}
+f1_score <- ModelMetrics::f1Score(model.prediction, test_set$isFraud)
+f1_score
+```
+
+```{r}
+fraud_data <- read.csv("C:/Users/mike/Downloads/financial dataset/Synthetic_Financial_datasets_log.csv")
+fraud_analysis <- fraud_data %>%  select( isFraud, amount)
+fraud_analysis
+```
+
+## Logistic Regression Model
+
+```{r}
+library("ROCR")
+#Splitting the data set 
+data_split <- sample.split(fraud_analysis, SplitRatio = 0.5)
+#data_split
+
+set.train <- subset(fraud_analysis, split== "TRUE")
+set.test <- subset(fraud_analysis, split== "FALSE")
+
+# modelling
+logistic_model <- glm(isFraud ~ amount, data = set.train, family = binomial(link = "logit"))
+ 
+summary(logistic_model)
+
+```
+
+### plotting the logistic regression graph
+
+```{r}
+par(mar=c(4, 4, 1, 1)) 
+plot(fraud_analysis$amount, fraud_analysis$isFraud)
+curve(predict(logistic_model, data.frame(amount=x), type="response"), add=TRUE) 
+
+ggplot(set.train ,aes(x=amount, y=isFraud)) + geom_jitter(height = .05, alpha=.1) + geom_smooth(method = "glm", method.args = list(family= "binomial"), se=FALSE)
+
+```
+
+```{r}
+predict.result <- predict(logistic_model, set.test, type = "response")
+predict.result <- ifelse(predict.result > 0.5, 1, 0)
+
+misClassError <- mean(predict.result != fraud_analysis$isFraud)
+print(paste("Accuracy",1-misClassError))
+```
+
+```{r}
+pred.result <- predict(logistic_model, set.test, type = "response")
+pre.result <- prediction(pred.result, set.test$isFraud)
+perf <- performance(pre.result, measure = "tpr", x.measure = 'fpr')
+plot(perf)
+```
+
+```{r}
+auc <- performance(pre.result, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+```
+
+## Random Forest Model
+
+```{r}
+library('randomForest')
+
+fraud_data$isFraud = factor(fraud_data$isFraud, levels = c(0,1))
+
+#splitting the data 
+splitz <- sample.split(fraud_data, SplitRatio = 0.5)
+
+#.....into test and train set
+set_train <- subset(fraud_data, splitz == "TRUE")
+set_test <- subset(fraud_data, splitz == "FALSE")
+```
+
+```{r}
+#Fitting Random Forest to the train set
+set.seed(100)
+head(set_train[-1])
+model.ran <- randomForest(x = set_train[-1], y = set_train$isFraud, ntree = 500)
+model.ran
+
+```
+
+### Predicting the test set result
+
+```{r}
+pred_test <- predict(model.ran, newdata = set_test[-1])
+pred_test
+```
+
+```{r}
+confusion_matrix <- caret::confusionMatrix(set_test$isFraud, pred_test)
+confusion_matrix
+```
+
+```{r}
+recal <- ModelMetrics::recall(test_set$isFraud, pred_test)
+recal
 ```
