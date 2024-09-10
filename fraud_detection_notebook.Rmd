@@ -1,8 +1,16 @@
 ---
 title: "Fraud Detection Using Machine Learning"
-output: html_notebook
----gv
+output:
+  word_document: default
+  html_notebook: default
+  html_document:
+    df_print: paged
+  pdf_document: default
+editor_options: 
+  chunk_output_type: inline
 ---
+
+------------------------------------------------------------------------
 
 # "Fraud Detection Using Machine Learning
 
@@ -110,7 +118,7 @@ model.prediction
 ### Making the Confusion Matrix
 
 ```{r}
-confusion_matrix <- caret::confusionMatrix(test_set$isFraud, model.prediction)
+confusion_matrix <- caret::confusionMatrix(model.prediction, test_set$isFraud,)
 confusion_matrix
 ```
 
@@ -119,21 +127,21 @@ confusion_matrix
 ### Recall
 
 ```{r}
-recal <- ModelMetrics::recall(test_set$isFraud, model.prediction)
-recal
+Recall_svm <- caret::recall(model.prediction, test_set$isFraud)
+Recall_svm
 ```
 
 ### Precision
 
 ```{r}
-preci <- ModelMetrics::precision( test_set$isFraud,model.prediction,)
+preci <- caret::precision(model.prediction, test_set$isFraud)
 preci
 ```
 
 ### F1 Score
 
 ```{r}
-f1_score <- ModelMetrics::f1Score(model.prediction, test_set$isFraud)
+f1_score <- ModelMetrics::f1Score(test_set$isFraud, model.prediction,  cutoff = 0.5)
 f1_score
 ```
 
@@ -161,12 +169,18 @@ summary(logistic_model)
 
 ```
 
+```{r}
+pscl::pR2(logistic_model)["McFadden"]
+```
+
+### model have a lower McFadden R2 score indicating the model having low predictive power.
+
 ### plotting the logistic regression graph
 
 ```{r}
-par(mar=c(4, 4, 1, 1)) 
-plot(fraud_analysis$amount, fraud_analysis$isFraud)
-curve(predict(logistic_model, data.frame(amount=x), type="response"), add=TRUE) 
+#par(mar=c(4, 4, 1, 1)) 
+#3plot(fraud_analysis$amount, fraud_analysis$isFraud)
+#curve(predict(logistic_model, data.frame(amount=x), type="response"), add=TRUE) 
 
 ggplot(set.train ,aes(x=amount, y=isFraud)) + geom_jitter(height = .05, alpha=.1) + geom_smooth(method = "glm", method.args = list(family= "binomial"), se=FALSE)
 
@@ -178,9 +192,11 @@ predict.result <- ifelse(predict.result > 0.5, 1, 0)
 
 misClassError <- mean(predict.result != fraud_analysis$isFraud)
 print(paste("Accuracy",1-misClassError))
+ 
 ```
 
 ```{r}
+ 
 pred.result <- predict(logistic_model, set.test, type = "response")
 pre.result <- prediction(pred.result, set.test$isFraud)
 perf <- performance(pre.result, measure = "tpr", x.measure = 'fpr')
@@ -196,6 +212,7 @@ auc
 ## Random Forest Model
 
 ```{r}
+ 
 library('randomForest')
 
 fraud_data$isFraud = factor(fraud_data$isFraud, levels = c(0,1))
@@ -204,15 +221,15 @@ fraud_data$isFraud = factor(fraud_data$isFraud, levels = c(0,1))
 splitz <- sample.split(fraud_data, SplitRatio = 0.5)
 
 #.....into test and train set
-set_train <- subset(fraud_data, splitz == "TRUE")
-set_test <- subset(fraud_data, splitz == "FALSE")
+settrain <- subset(fraud_data, splitz == "TRUE")
+settest <- subset(fraud_data, splitz == "FALSE")
 ```
 
 ```{r}
 #Fitting Random Forest to the train set
 set.seed(100)
-head(set_train[-1])
-model.ran <- randomForest(x = set_train[-1], y = set_train$isFraud, ntree = 500)
+head(settrain[-1])
+model.ran <- randomForest(x = settrain[-1], y = settrain$isFraud, ntree = 500)
 model.ran
 
 ```
@@ -220,16 +237,11 @@ model.ran
 ### Predicting the test set result
 
 ```{r}
-pred_test <- predict(model.ran, newdata = set_test[-1])
+pred_test <- predict(model.ran, newdata = settest[-1])
 pred_test
 ```
 
 ```{r}
-confusion_matrix <- caret::confusionMatrix(set_test$isFraud, pred_test)
+confusion_matrix <- caret::confusionMatrix(settest$isFraud, pred_test)
 confusion_matrix
-```
-
-```{r}
-recal <- ModelMetrics::recall(test_set$isFraud, pred_test)
-recal
 ```

@@ -38,3 +38,15 @@ model.ran
 
 #predicting the test set result
 pred_test <- predict(model.ran, newdata = set_test[-1])
+
+
+
+#ggplot(set.train, aes(x = amount, y = isFraud)) + geom_point() + stat_smooth(method = "glm", method.args = list(family = "binomial"), se=FALSE)
+
+# To Reduce some of the margin so  that the plot fits better.
+par(mar=c(4, 4, 1, 1)) 
+plot(fraud_analysis$amount, fraud_analysis$isFraud)
+curve(predict(logistic_model, data.frame(amount=x), type="response"), add=TRUE) 
+
+ggplot(set.train ,aes(x=amount, y=isFraud)) + geom_jitter(height = .05, alpha=.1) + geom_smooth(method = "glm", method.args = list(family= "binomial"), se=FALSE)
+
